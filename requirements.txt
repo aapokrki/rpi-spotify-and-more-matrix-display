@@ -3,3 +3,5 @@ numpy
 requests
 spotipy
 RGBMatrixEmulator
+python-dateutil
+keyboard

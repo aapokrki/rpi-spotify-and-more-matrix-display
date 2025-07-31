@@ -1,10 +1,11 @@
-import os, inspect, sys, math, time, configparser, argparse, warnings
-from PIL import Image
+import os, inspect, sys, math, time, configparser, argparse, warnings, keyboard
+from PIL import Image, ImageFont, ImageDraw
 
 from apps_v2 import spotify_player
 from modules import spotify_module
 
-
+from apps_v2 import test_display
+from modules import test_module
 def main():
     canvas_width = 64
     canvas_height = 64
@@ -39,8 +40,8 @@ def main():
         sys.exit()
 
     # connect to Spotify and create display image
-    modules = { 'spotify' : spotify_module.SpotifyModule(config) }
-    app_list = [ spotify_player.SpotifyScreen(config, modules, is_full_screen_always) ]
+    modules = { 'spotify' : spotify_module.SpotifyModule(config), 'test' : test_module.TestModule(config) }
+    app_list = [ spotify_player.SpotifyScreen(config, modules, is_full_screen_always), test_display.ClockDisplay()]
 
     # setup matrix
     options = RGBMatrixOptions()
@@ -57,22 +58,77 @@ def main():
     black_screen = Image.new("RGB", (canvas_width, canvas_height), (0,0,0))
     last_active_time = math.floor(time.time())
 
+    no_spotify_screen = Image.new("RGB", (canvas_width, canvas_height), (0,0,0))
+    draw = ImageDraw.Draw(no_spotify_screen)
+    draw.text((11, 24), "Spotify Not", (255, 255, 255), ImageFont.truetype("fonts/tiny.otf", 5))
+    draw.text((19, 36), "Running", (255, 255, 255), ImageFont.truetype("fonts/tiny.otf", 5))
+
+    def pressSpace():
+        frame = app_list[1].generate()
+        while(frame is not None):
+            matrix.SetImage(frame)
+            time.sleep(0.08)
+            frame = app_list[1].generate()
+
+            #add other screens here
+            if keyboard.is_pressed('alt'):
+                return pressS()
+        return frame
+
+    def pressS():
+        last_active_time = math.floor(time.time())
+        current_time = math.floor(time.time())
+        frame, is_playing = app_list[0].generate()
+        count = 0
+        while (frame is None and count < 20):
+            frame, is_playing = app_list[0].generate()
+            count += 1
+            # print('no spotify')
+        while (frame is not None):
+            # print('got spotify')
+            frame, is_playing = app_list[0].generate()
+            if frame is not None:
+                if is_playing:
+                    last_active_time = math.floor(time.time())
+                elif current_time - last_active_time >= shutdown_delay:
+                    frame = black_screen
+            else:
+                frame = no_spotify_screen
+                is_playing = False
+
+            # add other screens here
+            if keyboard.is_pressed('space'):
+                return pressSpace()
+
+            matrix.SetImage(frame)
+            time.sleep(0.08)
+
+        # if frame != None:
+        #     matrix.SetImage(frame)
+        #     time.sleep(0.08)
+        #     return frame
+        return no_spotify_screen
+
+    gloframe = None
+
     # generate image
     while(True):
-        frame, is_playing = app_list[0].generate()
-        current_time = math.floor(time.time())
 
-        if frame is not None:
-            if is_playing:
-                last_active_time = math.floor(time.time())
-            elif current_time - last_active_time >= shutdown_delay:
-                frame = black_screen
-        else:
-            frame = black_screen
+        if(gloframe is None):
+            print('gloframe is none')
+            gloframe = black_screen
 
-        matrix.SetImage(frame)
-        time.sleep(0.08)
+        if(gloframe is not None):
+            if(keyboard.is_pressed('space')):
+                switchedTime = math.floor(time.time())
+                gloframe = pressSpace()
+            elif(keyboard.is_pressed('alt')):
+                switchedTime = math.floor(time.time())
+                gloframe = pressS()
 
+            firstTime = math.floor(time.time())
+            matrix.SetImage(gloframe)
+            time.sleep(0.08)
 
 if __name__ == '__main__':
     try:
