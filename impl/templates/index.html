@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+    <title>LED Matrix Controller</title>
+</head>
+<body>
+    <h1>LED Matrix Controller</h1>
+    <p>Currently showing: <strong>{{ current_mode|capitalize }}</strong></p>
+
+    <form method="post" action="/set/spotify">
+        <button type="submit">Spotify</button>
+    </form>
+    <form method="post" action="/set/clock">
+        <button type="submit">Clock</button>
+    </form>
+</body>
+</html>

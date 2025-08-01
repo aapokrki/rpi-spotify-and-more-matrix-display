@@ -1,49 +1,37 @@
-import os, inspect, sys, math, time, configparser, argparse, warnings, keyboard
-from PIL import Image, ImageFont, ImageDraw
+import os, sys, math, time, configparser, argparse, warnings, inspect
+from PIL import Image, ImageDraw, ImageFont
+from threading import Thread
+import signal
 
-from apps_v2 import spotify_player
-from modules import spotify_module
+from frames import spotify_player, clock
+from modules import spotify_module, test_module
 
-from apps_v2 import test_display
-from modules import test_module
+from app import run_flask, get_selected_mode
+
 def main():
-    canvas_width = 64
-    canvas_height = 64
-
-    # get arguments
-    parser = argparse.ArgumentParser(
-                    prog = 'RpiSpotifyMatrixDisplay',
-                    description = 'Displays album art of currently playing song on an LED matrix')
-
-    parser.add_argument('-f', '--fullscreen', action='store_true', help='Always display album art in fullscreen')
-    parser.add_argument('-e', '--emulated', action='store_true', help='Run in a matrix emulator')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--fullscreen', action='store_true')
+    parser.add_argument('-e', '--emulated', action='store_true')
     args = parser.parse_args()
 
     is_emulated = args.emulated
     is_full_screen_always = args.fullscreen
 
-    # switch matrix library import if emulated
     if is_emulated:
         from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
     else:
         from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
-    # get config
-    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    sys.path.append(currentdir+"/rpi-rgb-led-matrix/bindings/python")
-
     config = configparser.ConfigParser()
-    parsed_configs = config.read('../config.ini')
+    config_path = os.path.join(os.path.dirname(__file__), '../config.ini')
+    if not config.read(config_path):
+        print("No config file found")
+        sys.exit(1)
 
-    if len(parsed_configs) == 0:
-        print("no config file found")
-        sys.exit()
+    # Matrix setup
+    canvas_width = 64
+    canvas_height = 64
 
-    # connect to Spotify and create display image
-    modules = { 'spotify' : spotify_module.SpotifyModule(config), 'test' : test_module.TestModule(config) }
-    app_list = [ spotify_player.SpotifyScreen(config, modules, is_full_screen_always), test_display.ClockDisplay()]
-
-    # setup matrix
     options = RGBMatrixOptions()
     options.hardware_mapping = config.get('Matrix', 'hardware_mapping', fallback='regular')
     options.rows = canvas_width
@@ -52,88 +40,75 @@ def main():
     options.gpio_slowdown = config.getint('Matrix', 'gpio_slowdown', fallback=1)
     options.limit_refresh_rate_hz = config.getint('Matrix', 'limit_refresh_rate_hz', fallback=0)
     options.drop_privileges = False
-    matrix = RGBMatrix(options = options)
+
+    matrix = RGBMatrix(options=options)
+
+    # App setup
+    modules = {
+        'spotify': spotify_module.SpotifyModule(config),
+        'test': test_module.TestModule(config)
+    }
+    app_list = [
+        spotify_player.SpotifyScreen(config, modules, is_full_screen_always),
+        clock.ClockDisplay()
+    ]
 
     shutdown_delay = config.getint('Matrix', 'shutdown_delay', fallback=600)
-    black_screen = Image.new("RGB", (canvas_width, canvas_height), (0,0,0))
     last_active_time = math.floor(time.time())
 
-    no_spotify_screen = Image.new("RGB", (canvas_width, canvas_height), (0,0,0))
+    black_screen = Image.new("RGB", (canvas_width, canvas_height), (0, 0, 0))
+    no_spotify_screen = Image.new("RGB", (canvas_width, canvas_height), (0, 0, 0))
     draw = ImageDraw.Draw(no_spotify_screen)
     draw.text((11, 24), "Spotify Not", (255, 255, 255), ImageFont.truetype("fonts/tiny.otf", 5))
     draw.text((19, 36), "Running", (255, 255, 255), ImageFont.truetype("fonts/tiny.otf", 5))
 
-    def pressSpace():
+    def show_clock():
         frame = app_list[1].generate()
-        while(frame is not None):
+        while frame and get_selected_mode() == "clock":
             matrix.SetImage(frame)
             time.sleep(0.08)
             frame = app_list[1].generate()
 
-            #add other screens here
-            if keyboard.is_pressed('alt'):
-                return pressS()
-        return frame
-
-    def pressS():
-        last_active_time = math.floor(time.time())
-        current_time = math.floor(time.time())
-        frame, is_playing = app_list[0].generate()
+    def show_spotify():
+        nonlocal last_active_time
         count = 0
-        while (frame is None and count < 20):
+        frame, is_playing = app_list[0].generate()
+
+        while frame is None and count < 20:
             frame, is_playing = app_list[0].generate()
             count += 1
-            # print('no spotify')
-        while (frame is not None):
-            # print('got spotify')
+
+        while frame and get_selected_mode() == "spotify":
             frame, is_playing = app_list[0].generate()
-            if frame is not None:
+            if frame:
                 if is_playing:
                     last_active_time = math.floor(time.time())
-                elif current_time - last_active_time >= shutdown_delay:
+                elif time.time() - last_active_time > shutdown_delay:
                     frame = black_screen
             else:
                 frame = no_spotify_screen
-                is_playing = False
-
-            # add other screens here
-            if keyboard.is_pressed('space'):
-                return pressSpace()
-
             matrix.SetImage(frame)
             time.sleep(0.08)
 
-        # if frame != None:
-        #     matrix.SetImage(frame)
-        #     time.sleep(0.08)
-        #     return frame
-        return no_spotify_screen
+    def signal_handler(sig, frame):
+        print("Exiting...")
+        sys.exit(0)
 
-    gloframe = None
+    signal.signal(signal.SIGINT, signal_handler)
 
-    # generate image
-    while(True):
+    # Start web server
+    Thread(target=run_flask, daemon=True).start()
 
-        if(gloframe is None):
-            print('gloframe is none')
-            gloframe = black_screen
-
-        if(gloframe is not None):
-            if(keyboard.is_pressed('space')):
-                switchedTime = math.floor(time.time())
-                gloframe = pressSpace()
-            elif(keyboard.is_pressed('alt')):
-                switchedTime = math.floor(time.time())
-                gloframe = pressS()
-
-            firstTime = math.floor(time.time())
-            matrix.SetImage(gloframe)
-            time.sleep(0.08)
+    while True:
+        mode = get_selected_mode()
+        if mode == "clock":
+            show_clock()
+        elif mode == "spotify":
+            show_spotify()
+        else:
+            matrix.SetImage(black_screen)
+            time.sleep(0.1)
 
 if __name__ == '__main__':
-    try:
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        main()
-    except KeyboardInterrupt:
-        print('Interrupted with Ctrl-C')
-        sys.exit(0)
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    main()

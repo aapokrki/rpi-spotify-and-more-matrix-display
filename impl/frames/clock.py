@@ -7,7 +7,7 @@ class ClockDisplay:
     def __init__(self):
         self.canvas_width = 64
         self.canvas_height = 64
-        self.font = ImageFont.truetype("fonts/tiny.otf", 5)
+        self.font = ImageFont.truetype("fonts/tiny.otf", 10)
         self.text_color = (255, 255, 255)
 
     def generate(self):
@@ -20,10 +20,10 @@ class ClockDisplay:
 
         # Center the text
         # wT, hT = draw.textsize(time_string, font=self.font)
-        wT, hT = 32, 32
+        wT, hT = 35, 35
         # wD, hD = draw.textsize(date_string, font=self.font)
 
-        draw.text(((self.canvas_width - wT) / 2, 20), time_string, self.text_color, font=self.font)
+        draw.text(((self.canvas_width - wT) / 2, hT), time_string, self.text_color, font=self.font)
         # draw.text(((self.canvas_width - wD) / 2, 30), date_string, (161, 255, 220), font=self.font)
 
         return frame
