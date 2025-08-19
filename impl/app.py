@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for
 
 app = Flask(__name__)
-_selected_mode = "spotify"
+_selected_mode = "clock"
 
 @app.route('/')
 def index():
