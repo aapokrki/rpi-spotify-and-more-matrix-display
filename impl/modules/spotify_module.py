@@ -52,8 +52,8 @@ class SpotifyModule:
             return True
 
     def getCurrentPlayback(self):
-        # self.calls +=1
-        # print("spotify fetches: " + str(self.calls))
+        self.calls +=1
+        print("spotify fetches: " + str(self.calls))
 
         if self.invalid:
             return
@@ -76,3 +76,4 @@ class SpotifyModule:
                 self.queue.put((artist, title, art_url, self.isPlaying, track["progress_ms"], track["item"]["duration_ms"]))
         except Exception as e:
             print(e)
+
