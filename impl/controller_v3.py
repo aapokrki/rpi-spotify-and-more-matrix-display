@@ -65,7 +65,6 @@ def main():
     def show_clock():
         frame = app_list[1].generate()
         while frame and get_selected_mode() == "clock":
-            print(app_list)
             matrix.SetImage(frame)
             time.sleep(0.08)
             frame = app_list[1].generate()
@@ -80,7 +79,6 @@ def main():
             count += 1
 
         while frame and get_selected_mode() == "spotify":
-            print(app_list)
             frame, is_playing = app_list[0].generate()
             if frame:
                 if is_playing:
@@ -103,6 +101,7 @@ def main():
 
     while True:
         mode = get_selected_mode()
+        print(mode)
         if mode == "clock":
             show_clock()
         elif mode == "spotify":
@@ -114,5 +113,6 @@ def main():
 if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     main()
+
 
 
