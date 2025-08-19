@@ -64,22 +64,36 @@ def main():
 
     def show_clock():
         frame = app_list[1].generate()
-        while frame and get_selected_mode() == "clock":
-            matrix.SetImage(frame)
+        while get_selected_mode() == "clock":
+            if frame:
+                matrix.SetImage(frame)
+            else:
+                matrix.SetImage(black_screen)
             time.sleep(0.08)
             frame = app_list[1].generate()
+
 
     def show_spotify():
         nonlocal last_active_time
         count = 0
-        frame, is_playing = app_list[0].generate()
-
-        while frame is None and count < 20:
-            frame, is_playing = app_list[0].generate()
+    
+        result = app_list[0].generate()
+        while result is None and count < 20:  # retry a few times
+            result = app_list[0].generate()
             count += 1
-
-        while frame and get_selected_mode() == "spotify":
-            frame, is_playing = app_list[0].generate()
+    
+        if result is None:
+            frame, is_playing = no_spotify_screen, False
+        else:
+            frame, is_playing = result
+    
+        while get_selected_mode() == "spotify":
+            result = app_list[0].generate()
+            if result is None:
+                frame, is_playing = no_spotify_screen, False
+            else:
+                frame, is_playing = result
+    
             if frame:
                 if is_playing:
                     last_active_time = math.floor(time.time())
@@ -87,6 +101,7 @@ def main():
                     frame = black_screen
             else:
                 frame = no_spotify_screen
+    
             matrix.SetImage(frame)
             time.sleep(0.08)
 
@@ -113,6 +128,7 @@ def main():
 if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     main()
+
 
 
 
