@@ -18,5 +18,4 @@ def run_flask():
     app.run(host="0.0.0.0", port=5000)
 
 def get_selected_mode():
-    print(_selected_mode)
     return _selected_mode
