@@ -63,6 +63,7 @@ def main():
     draw.text((19, 36), "Running", (255, 255, 255), ImageFont.truetype("fonts/tiny.otf", 5))
 
     def show_clock():
+        print(app_list)
         frame = app_list[1].generate()
         while frame and get_selected_mode() == "clock":
             matrix.SetImage(frame)
@@ -112,3 +113,4 @@ def main():
 if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     main()
+
