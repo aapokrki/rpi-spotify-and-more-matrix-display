@@ -63,7 +63,6 @@ class SpotifyModule:
 
     def getCurrentPlayback(self):
         self.calls += 1
-        print("spotify fetches:", self.calls)
 
         if self.invalid or not self.sp:
             return None
